@@ -1,0 +1,173 @@
+.thumb
+.syntax unified
+
+.include "gpio_constants.s"     // Register-adresser og konstanter for GPIO
+.include "sys-tick_constants.s" // Register-adresser og konstanter for SysTick
+
+.text
+	.global Start
+	
+Start:
+// SetClock
+	// CTRL
+	LDR R0, =SYSTICK_BASE
+	LDR R1, =SYSTICK_CTRL
+	MOV R2, 0b110
+	STR R2, [R0, R1]
+	// LOAD
+	LDR R1, =SYSTICK_LOAD
+	LDR R2, =FREQUENCY/10
+	STR R2, [R0, R1]
+	// VALUE
+	LDR R1, = SYSTICK_VAL
+	STR R2, [R0, R1]
+	// Constants
+	LDR R0, =tenths
+	MOV R1, #0
+	STR R1, [R0]
+	LDR R0, =seconds
+	STR R1, [R0]
+	LDR R0, =minutes
+	STR R1, [R0]
+
+// SetButtonInterrupt
+	// EXTIPSELH
+LDR R0, =GPIO_BASE
+LDR R1, =GPIO_EXTIPSELH
+ADD R0, R0, R1
+MOV R1, 0b1111
+LSL R1, R1, #4
+MVN R1, R1
+AND R1, R1, R0
+MOV R2, PORT_B
+LSL R2, R2, #4
+ORR R1, R1, R2
+STR R1, [R0]
+	// EXTIFALL
+LDR R0, =GPIO_BASE
+LDR R1, =GPIO_EXTIFALL
+ADD R0, R0, R1
+Mov R1, #1
+LSL R1, R1, #9
+MVN R1, R1
+AND R1, R1, R0
+MOV R2, #1
+LSL R2, R2, #9
+ORR R1, R1, R2
+STR R1, [R0]
+	// IFC
+LDR R0, =GPIO_BASE
+LDR R1, =GPIO_IFC
+ADD R0, R0, R1
+MOV R1, #1
+LSL R1, R1, #9
+ORR R1, R1, R0
+STR R1, [R0]
+	// IEN
+LDR R0, =GPIO_BASE
+LDR R1, =GPIO_IEN
+ADD R0, R0, R1
+LDR R2, [R1]
+MOV R1, #1
+LSL R1, R1, #9
+ORR R1, R1, R2
+STR R1, [R0]
+
+Loop:
+B Loop
+
+// SysTick interupt
+.global SysTick_Handler
+.thumb_func
+SysTick_Handler:
+// Tenths
+	LDR R0, =tenths
+	LDR R1, [R0]
+	CMP R1, #9
+	BEQ else1
+	// NotEqual:
+	MOV R2, #1
+	ADD R3, R1, R2
+	STR R3, [R0]
+	B endIf
+	else1:
+	MOV R3, #0
+	STR R3, [R0]
+	// ToggleLED
+			// Register
+		LDR R0, =GPIO_BASE
+		MOV R2, #PORT_SIZE
+		MOV R1, #LED_PORT
+		MUL R1, R1, R2
+		LDR R3, =GPIO_PORT_DOUT
+		ADD R1, R1, R3
+			// GetPinValue
+		LDR R4, [R0, R1]
+		LSR R4, R4, #LED_PIN
+		MOV R5, #1
+		EOR R5, R4, R5
+		LSL R5, #LED_PIN
+		ORR R5, R5, R4
+		STR R5, [R0, R1]
+	// Seconds
+	LDR R0, =seconds
+	LDR R1, [R0]
+	CMP R1, #59
+	BEQ else2
+	// then:
+	MOV R2, #1
+	ADD R3, R2, R1
+	STR R3, [R0]
+	B endIf
+	else2:
+	MOV R2, #0
+	STR R2, [R0]
+// Minutes
+	LDR R0, =minutes
+	LDR R1, [R0]
+	CMP R1, #59
+	BEQ else3
+	// then:
+	MOV R2, #1
+	ADD R3, R2, R1
+	STR R3, [R0]
+	B endIf
+	else3:
+	MOV R2, #0
+	STR R2, [R0]
+	endIf:
+BX LR // Returner fra interrupt
+
+// Button interrupt
+.global GPIO_ODD_IRQHandler
+.thumb_func
+GPIO_ODD_IRQHandler:
+	LDR R0, =SYSTICK_BASE
+	LDR R1, =SYSTICK_CTRL
+	ADD R0, R0, R1
+	LDR R1, [R0]
+	MOV R2, 0b1
+	EOR R2, R2, R1
+	STR R2, [R0]
+// Enable
+	// IFC
+LDR R0, =GPIO_BASE
+LDR R1, =GPIO_IFC
+ADD R0, R0, R1
+LDR R2, [R0]
+MOV R1, #1
+LSL R1, R1, #9
+ORR R1, R1, R2
+STR R1, [R0]
+		// IEN
+LDR R0, =GPIO_BASE
+LDR R1, =GPIO_IEN
+ADD R0, R0, R1
+LDR R2, [R1]
+MOV R1, #1
+LSL R1, R1, #9
+ORR R1, R1, R2
+STR R1, [R0]
+BX LR // Returner frainterrupt
+
+NOP // Behold denne pÃ¥ bunnen av fila

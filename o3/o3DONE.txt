@@ -1,0 +1,131 @@
+#include "o3.h"
+#include "gpio.h"
+#include "systick.h"
+
+/**************************************************************************//**
+ * @brief Konverterer nummer til string 
+ * Konverterer et nummer mellom 0 og 99 til string
+ *****************************************************************************/
+void int_to_string(char *timestamp, unsigned int offset, int i) {
+    if (i > 99) {
+        timestamp[offset]   = '9';
+        timestamp[offset+1] = '9';
+        return;
+    }
+
+    while (i > 0) {
+	    if (i >= 10) {
+		    i -= 10;
+		    timestamp[offset]++;
+		
+	    } else {
+		    timestamp[offset+1] = '0' + i;
+		    i=0;
+	    }
+    }
+}
+
+/**************************************************************************//**
+ * @brief Konverterer 3 tall til en timestamp-string
+ * timestamp-argumentet mÃ¥ vÃ¦re et array med plass til (minst) 7 elementer.
+ * Det kan deklareres i funksjonen som kaller som "char timestamp[7];"
+ * Kallet blir dermed:
+ * char timestamp[7];
+ * time_to_string(timestamp, h, m, s);
+ *****************************************************************************/
+void time_to_string(char *timestamp, int h, int m, int s) {
+    timestamp[0] = '0';
+    timestamp[1] = '0';
+    timestamp[2] = '0';
+    timestamp[3] = '0';
+    timestamp[4] = '0';
+    timestamp[5] = '0';
+    timestamp[6] = '\0';
+
+    int_to_string(timestamp, 0, h);
+    int_to_string(timestamp, 2, m);
+    int_to_string(timestamp, 4, s);
+}
+
+int main(void) {
+    init();
+    // Skriv din kode her...
+
+
+    //LED
+		// Sett opp variabel av type port_pin_t:
+		port_pin_t LED;
+		LED.port = GPIO_PORT_E;
+		LED.pin = 2;
+		// Adresse til LEDport (GPIO_BASE er i B, derfor ganges 4):
+		gpio_port_map_t *LED_port;
+		LED_port = (gpio_port_map_t *) (GPIO_BASE + 9*LED.port*4);
+		// Sett LEDpin som output:
+		LED_port->DOUTCLR = (1<< LED.pin);
+		volatile word mask = (0b1111 << (LED.pin*4));
+		mask = ~mask;
+		LED_port->MODEL &= mask;
+		LED_port->MODEL |= (GPIO_MODE_OUTPUT << (LED.pin*4));
+
+    //Button
+		// Adresse til ButtonPort:
+			//port_pin_t BUTTON;
+			//BUTTON.port = GPIO_PORT_B;
+			//BUTTON.pin = 9;
+			//gpio_port_map_t *BUTTON_port;
+			//BUTTON_port = (gpio_port_map_t *) (GPIO_BASE + 9*BUTTON.port*4);
+		// Sett ButtonPin som input:
+			//volatile word mask2 = (0b1111 << ((BUTTON.pin-8)*4));
+			//mask2 = ~mask2;
+			//BUTTON_port->MODEH &= mask2;
+			//BUTTON_port->MODEH |= (GPIO_MODE_INPUT << ((BUTTON.pin-8)*4));
+		//enable();
+
+    while(1){
+    	//Loop
+    }
+    return 0;
+}
+
+// ButtonInterrupt:
+       void GPIO_ODD_IRQHandler( void ) {
+       	// Turn on LED:
+    	   port_pin_t LED;
+			LED.port = GPIO_PORT_E;
+			LED.pin = 2;
+			gpio_port_map_t *LED_port;
+			LED_port = (gpio_port_map_t *) (GPIO_BASE + 9*LED.port*4);
+       	    LED_port->DOUTTGL |= (1 << LED.pin);
+       	    enable1();
+       	}
+
+
+
+
+void enable(void){
+	// EXTIPSELH
+	gpio_map_t *BASE = (gpio_map_t *) GPIO_BASE;
+	BASE->EXTIPSELH &= ~(0b1111 << (1*4));
+	BASE->EXTIPSELH |= (0b0001 << (1*4));
+	// EXTIFALL
+	BASE->EXTIFALL |= (0b1 << 9);
+	enable1();
+}
+
+void enable1(void){
+	gpio_map_t *BASE = (gpio_map_t *) GPIO_BASE;
+		// IFC
+		BASE->IFC |= (0b1 << 9);
+		// IEN
+		BASE->IEN |= (0b1 << 9);
+}
+
+
+	//Spørgesmål:
+		//1. ER knappene enablet fra før? (typ drop enable())
+		//2. Må knapper fremdeles reables etter interrupt? (typ enable1())
+		//3. Må knappen settes opp på DIN til portB?
+		//4. Kan man droppe DIN og bare bruke at det er forskjell på ODD- og EQUEALhandler?
+		//5. Slik som koden er nå, burde ikkje interrupt bli kalt og LED toggles?
+		//6. Må/kan interruptHandler stå utenfor main()?
+		//7. Må interruptHandler være deklarert i header, eller er den det i grunnleggende kode?

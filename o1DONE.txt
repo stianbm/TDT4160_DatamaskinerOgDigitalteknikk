@@ -1,0 +1,28 @@
+// nice values
+LDR R0, =GPIO_BASE
+MOV R2, #PORT_SIZE
+
+//LEDRegister
+MOV R1, #LED_PORT
+MUL R1, R1, R2
+LDR R4, =GPIO_PORT_DOUT
+ADD R1, R1, R4
+
+//ButtonRegister
+MOV R5, #BUTTON_PORT
+MUL R5, R5, R2
+LDR R6, =GPIO_PORT_DIN
+ADD R5, R5, R6
+LDR R5, [R5, R0]
+
+//ShiftButtonPin
+SUB R3, #BUTTON_PIN, #LED_PIN
+LSR R5, R5, #BUTTON_PIN
+EOR R5, R5, #1
+LSL R5, R5, #LED_PIN
+
+//LoadInLED
+STR R5, [ R0, R1]
+
+//Hopp til start
+B Start
